@@ -62,7 +62,7 @@ export const PeopleAssign = ({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-base font-semibold">People</h2>
-          <p className="text-xs text-muted-foreground">Add friends and edit their names or weights for splitting later.</p>
+          <p className="text-xs text-muted-foreground">Add friends and adjust their percentage shares for the Total tab.</p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <Button variant="outline" size="sm" onClick={onAdd} className="w-full gap-2 sm:w-auto">
@@ -70,7 +70,7 @@ export const PeopleAssign = ({
           </Button>
           {canEditWeights ? (
             <Button variant="ghost" size="sm" onClick={onToggleWeights} className="w-full sm:w-auto">
-              {showWeights ? "Hide weighted split" : "Weighted split"}
+              {showWeights ? "Hide percentage split" : "Percentage split"}
             </Button>
           ) : null}
         </div>
@@ -111,25 +111,26 @@ export const PeopleAssign = ({
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {persons.map((person) => (
             <div key={person.id} className="rounded-xl border border-border p-3">
-              <Label htmlFor={`weight-${person.id}`} className="text-sm font-medium">
+              <Label htmlFor={`share-${person.id}`} className="text-sm font-medium">
                 {person.name}
               </Label>
               <div className="mt-2 flex items-center gap-2">
                 <Input
-                  id={`weight-${person.id}`}
+                  id={`share-${person.id}`}
                   type="number"
                   inputMode="decimal"
-                  min={0.1}
+                  min={0}
+                  max={100}
                   step="0.1"
-                  value={person.weight.toString()}
-                  onChange={(event) => onWeightChange(person.id, Number.parseFloat(event.target.value || "1"))}
+                  value={Number.isFinite(person.weight) ? person.weight.toString() : "0"}
+                  onChange={(event) => onWeightChange(person.id, Number.parseFloat(event.target.value || "0"))}
                 />
-                <span className="text-xs text-muted-foreground">Weight</span>
+                <span className="text-xs text-muted-foreground">%</span>
               </div>
             </div>
           ))}
           <p className="col-span-full text-xs text-muted-foreground">
-            Weights only affect the Total Only tab. Leave everyone at 1 for an even split.
+            Shares always sum to 100% and only affect the Total only tab. Leave everyone equal for an even split.
           </p>
         </div>
       )}

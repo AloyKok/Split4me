@@ -75,6 +75,75 @@ type TabKey = "items" | "total";
 const INITIAL_PERSONS: Person[] = [createPerson(0), createPerson(1)];
 const INITIAL_ITEMS: Item[] = [createBlankItem(), createBlankItem(), createBlankItem()];
 
+const clampPercent = (value: number, min = 0, max = 100) => {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(Math.max(value, min), max);
+};
+
+const roundToTwo = (value: number) => Number(value.toFixed(2));
+
+const redistributePercentages = (persons: Person[]): Person[] => {
+  if (!persons.length) return persons;
+  const total = persons.reduce((sum, person) => sum + Math.max(person.weight ?? 0, 0), 0);
+  if (total <= 0) {
+    const equalShare = roundToTwo(100 / persons.length);
+    const rounded = persons.map((person) => ({ ...person, weight: equalShare }));
+    const diff = roundToTwo(100 - rounded.reduce((sum, person) => sum + person.weight, 0));
+    if (Math.abs(diff) > 0.001) {
+      rounded[0] = { ...rounded[0], weight: roundToTwo(rounded[0].weight + diff) };
+    }
+    return rounded;
+  }
+  const scaled = persons.map((person) => ({
+    ...person,
+    weight: roundToTwo(((person.weight ?? 0) / total) * 100),
+  }));
+  const diff = roundToTwo(100 - scaled.reduce((sum, person) => sum + person.weight, 0));
+  if (Math.abs(diff) > 0.001) {
+    const index = scaled.findIndex((person) => person.weight > 0);
+    if (index >= 0) {
+      scaled[index] = { ...scaled[index], weight: roundToTwo(scaled[index].weight + diff) };
+    }
+  }
+  return scaled;
+};
+
+const setShareForPerson = (persons: Person[], personId: string, percent: number): Person[] => {
+  if (!persons.length) return persons;
+  const clamped = roundToTwo(clampPercent(percent));
+  const normalized = redistributePercentages(persons);
+  const others = normalized.filter((person) => person.id !== personId);
+  const remaining = roundToTwo(Math.max(0, 100 - clamped));
+  const totalOthers = others.reduce((sum, person) => sum + person.weight, 0);
+
+  const updated = normalized.map((person) => {
+    if (person.id === personId) {
+      return { ...person, weight: clamped };
+    }
+    if (!others.length) return { ...person, weight: 0 };
+    if (totalOthers <= 0) {
+      const share = others.length ? remaining / others.length : 0;
+      return { ...person, weight: roundToTwo(share) };
+    }
+    const share = (person.weight / totalOthers) * remaining;
+    return { ...person, weight: roundToTwo(share) };
+  });
+
+  const diff = roundToTwo(100 - updated.reduce((sum, person) => sum + person.weight, 0));
+  if (Math.abs(diff) > 0.001) {
+    const index = updated.findIndex((person) => person.id === personId);
+    const targetIndex = index >= 0 ? index : updated.findIndex((person) => person.weight > 0);
+    if (targetIndex >= 0) {
+      updated[targetIndex] = {
+        ...updated[targetIndex],
+        weight: roundToTwo(Math.max(0, updated[targetIndex].weight + diff)),
+      };
+    }
+  }
+
+  return updated;
+};
+
 const COUNTRY_SETTINGS: Record<Country, {
   currency: Currency;
   serviceCharge: {
@@ -129,7 +198,7 @@ const CURRENCY_LABELS: Record<Currency, string> = {
 
 export const TabsReceiptTotal = () => {
   const [country, setCountry] = useState<Country>("Singapore");
-  const [persons, setPersons] = useState<Person[]>(() => INITIAL_PERSONS.map((person) => ({ ...person })));
+  const [persons, setPersons] = useState<Person[]>(() => redistributePercentages(INITIAL_PERSONS.map((person) => ({ ...person }))));
   const [items, setItems] = useState<Item[]>(INITIAL_ITEMS);
   const [activeTab, setActiveTab] = useState<TabKey>("total");
   const [totalAmount, setTotalAmount] = useState<number>(0);
@@ -157,7 +226,8 @@ export const TabsReceiptTotal = () => {
   const weights = useMemo(() => {
     const map: Record<string, number> = {};
     persons.forEach((person) => {
-      map[person.id] = Math.max(person.weight ?? 1, 0.1);
+      const share = clampPercent(person.weight ?? 0, 0, 100);
+      map[person.id] = Math.max(share, 0);
     });
     return map;
   }, [persons]);
@@ -210,8 +280,17 @@ export const TabsReceiptTotal = () => {
 
   const addPerson = () => {
     setPersons((prev) => {
-      const next = [...prev, createPerson(prev.length)];
-      return next;
+      const normalized = redistributePercentages(prev);
+      const newPerson = createPerson(prev.length);
+      const newShare = roundToTwo(100 / (normalized.length + 1));
+      const remaining = Math.max(0, 100 - newShare);
+      const total = normalized.reduce((sum, item) => sum + item.weight, 0) || 1;
+      const updatedOthers = normalized.map((person) => ({
+        ...person,
+        weight: roundToTwo((person.weight / total) * remaining),
+      }));
+      const updated = [...updatedOthers, { ...newPerson, weight: newShare }];
+      return redistributePercentages(updated);
     });
   };
 
@@ -222,7 +301,7 @@ export const TabsReceiptTotal = () => {
   };
 
   const removePerson = (personId: string) => {
-    setPersons((prev) => prev.filter((person) => person.id !== personId));
+    setPersons((prev) => redistributePercentages(prev.filter((person) => person.id !== personId)));
     setItems((prev) =>
       prev.map((item) => ({
         ...item,
@@ -232,11 +311,7 @@ export const TabsReceiptTotal = () => {
   };
 
   const updateWeight = (personId: string, weight: number) => {
-    setPersons((prev) =>
-      prev.map((person) =>
-        person.id === personId ? { ...person, weight: Number.isFinite(weight) && weight > 0 ? weight : 1 } : person,
-      ),
-    );
+    setPersons((prev) => setShareForPerson(prev, personId, weight));
   };
 
   const addItem = () => {
@@ -567,7 +642,7 @@ export const TabsReceiptTotal = () => {
                 </p>
               ) : null}
               <p className="text-xs text-muted-foreground">
-                Weighted split uses the values under “Weighted split” in the people list. Everyone stays at 1 for an even split.
+                Percentage split uses the values under “Percentage split” in the people list. Leave shares equal for an even split.
               </p>
             </CardContent>
           </Card>

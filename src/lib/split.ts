@@ -1,10 +1,5 @@
 import { reverse, type RoundingMode } from "@/lib/calc";
-import {
-  distributeRemainder,
-  roundBankers,
-  roundHalfUp,
-  roundToNearestStep,
-} from "@/lib/rounding";
+import { distributeRemainder, roundBankers, roundHalfUp, roundToNearestStep } from "@/lib/rounding";
 import type { Currency, Item, ItemAssignment, Person, PersonShare, SplitBreakdown } from "@/types";
 
 const EPSILON = 1e-9;
@@ -126,47 +121,47 @@ export const splitTotal = (
   options: SplitOptions,
 ): SplitBreakdown => {
   const rounding = picker(options.mode);
-  const reverseResult = reverse(total, serviceChargeRate, taxRate, options.mode);
-  const weightSum = sum(persons.map((person) => Math.max(weights[person.id] ?? 1, EPSILON)));
+  if (!persons.length) {
+    return {
+      currency: options.currency,
+      beforeCharge: 0,
+      serviceChargeTotal: 0,
+      taxTotal: 0,
+      grandTotal: 0,
+      perPerson: [],
+    };
+  }
 
-  const baseShares = persons.map((person) =>
-    reverseResult.before * ((weights[person.id] ?? 1) / (weightSum || 1)),
-  );
-  const scShares = reverseResult.serviceCharge
-    ? distributeRemainder(
-        baseShares.map((value) =>
-          reverseResult.before > 0 ? (value / reverseResult.before) * reverseResult.serviceCharge : 0,
-        ),
-        reverseResult.serviceCharge,
-      )
-    : persons.map(() => 0);
-  const taxShares = distributeRemainder(
-    baseShares.map((value, index) => rounding((value + scShares[index]) * taxRate)),
-    reverseResult.tax,
-  );
+  const weightValues = persons.map((person) => Math.max(weights[person.id] ?? 0, 0));
+  const totalWeight = sum(weightValues);
+  const fractions = totalWeight > EPSILON
+    ? weightValues.map((value) => value / totalWeight)
+    : persons.map(() => 1 / persons.length);
 
-  const totals = baseShares.map((value, index) => value + scShares[index] + taxShares[index]);
-  const reconciledTotals = applyStepReconciliation(
-    totals,
-    reverseResult.total,
-    rounding,
-    options.roundToTenCents ? 0.1 : undefined,
-  );
+  const totalsRaw = fractions.map((fraction) => total * fraction);
+  const totals = distributeRemainder(totalsRaw, total);
+
+  const perPersonShares = totals.map((value) => reverse(value, serviceChargeRate, taxRate, options.mode));
 
   const perPerson: PersonShare[] = persons.map((person, index) => ({
     personId: person.id,
-    items: roundHalfUp(baseShares[index] ?? 0),
-    serviceCharge: scShares[index] ?? 0,
-    tax: taxShares[index] ?? 0,
-    total: reconciledTotals[index] ?? 0,
+    items: perPersonShares[index]?.before ?? 0,
+    serviceCharge: perPersonShares[index]?.serviceCharge ?? 0,
+    tax: perPersonShares[index]?.tax ?? 0,
+    total: perPersonShares[index]?.total ?? 0,
   }));
+
+  const beforeCharge = perPerson.reduce((sum, share) => sum + share.items, 0);
+  const serviceChargeTotal = perPerson.reduce((sum, share) => sum + share.serviceCharge, 0);
+  const taxTotal = perPerson.reduce((sum, share) => sum + share.tax, 0);
+  const grandTotal = perPerson.reduce((sum, share) => sum + share.total, 0);
 
   return {
     currency: options.currency,
-    beforeCharge: reverseResult.before,
-    serviceChargeTotal: reverseResult.serviceCharge,
-    taxTotal: reverseResult.tax,
-    grandTotal: reverseResult.total,
+    beforeCharge: rounding(beforeCharge),
+    serviceChargeTotal: rounding(serviceChargeTotal),
+    taxTotal: rounding(taxTotal),
+    grandTotal: rounding(grandTotal),
     perPerson,
   };
 };
