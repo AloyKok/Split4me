@@ -40,31 +40,27 @@ export interface OcrLineItem {
   qty?: number;
   unitPrice?: number;
   lineTotal?: number;
+  details?: string[];
+  confidence?: number;
+  sourceLine?: number;
 }
 
 export interface OcrResult {
   merchant?: string;
   dateISO?: string;
   items: OcrLineItem[];
-  subtotal?: number;
-  serviceCharge?: number;
-  tax?: number;
-  total?: number;
-  currencyGuess?: Currency;
-  scGuess?: number;
-  taxGuess?: number;
+  confidenceScore: number;
+  confidenceLabel: OcrConfidence;
+  rawText: string;
 }
+
+export type OcrConfidence = "high" | "medium" | "low";
 
 export interface ReceiptMetaState {
   merchant?: string;
   dateISO?: string;
-  detected?: {
-    subtotal?: number;
-    serviceCharge?: number;
-    tax?: number;
-    total?: number;
-  };
-  useReceiptCharges: boolean;
+  confidence?: OcrConfidence;
+  confidenceScore?: number;
 }
 
 export interface PersonShare {
@@ -89,4 +85,31 @@ export interface PreferencesState {
   currency: Currency;
   rates: RatesState;
   roundingMode: "half-up" | "bankers";
+}
+
+export interface OcrLayoutBBox {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+export interface OcrLayoutWord {
+  text: string;
+  confidence: number;
+}
+
+export interface OcrLayoutLine {
+  text: string;
+  confidence: number;
+  bbox: OcrLayoutBBox;
+  words?: OcrLayoutWord[];
+}
+
+export interface OcrRecognizeData {
+  text: string;
+  lines?: OcrLayoutLine[];
+  blocks?: Array<{
+    bbox: OcrLayoutBBox;
+  }>;
 }
