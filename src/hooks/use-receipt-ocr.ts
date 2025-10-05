@@ -59,7 +59,7 @@ export const useReceiptOcr = ({ onResult, onError }: UseReceiptOcrOptions = {}) 
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ image: processed.previewUrl }),
+          body: JSON.stringify({ image: processed.processedPreviewUrl }),
         });
 
         if (!apiResponse.ok) {

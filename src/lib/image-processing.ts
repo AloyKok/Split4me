@@ -51,6 +51,8 @@ const applyThreshold = (data: Uint8ClampedArray) => {
 export interface ProcessedImage {
   imageData: ImageData;
   previewUrl: string;
+  processedPreviewUrl: string;
+  originalUrl: string;
   originalWidth: number;
   originalHeight: number;
   scaledWidth: number;
@@ -114,11 +116,13 @@ export const preprocessImageFile = async (file: File): Promise<ProcessedImage> =
   applyThreshold(data);
 
   ctx.putImageData(imageData, 0, 0);
-  const previewUrl = canvas.toDataURL("image/png");
+  const processedPreviewUrl = canvas.toDataURL("image/png");
 
   return {
     imageData,
-    previewUrl,
+    previewUrl: dataUrl,
+    processedPreviewUrl,
+    originalUrl: dataUrl,
     originalWidth,
     originalHeight,
     scaledWidth,
