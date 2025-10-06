@@ -196,7 +196,9 @@ export const ReceiptOcrPanel = ({ onReceiptParsed }: ReceiptOcrPanelProps) => {
           <Button
             variant="outline"
             onClick={() => {
-              if (navigator.mediaDevices?.getUserMedia) {
+              if (typeof navigator !== "undefined" &&
+                navigator.mediaDevices &&
+                typeof navigator.mediaDevices.getUserMedia === "function") {
                 setCameraOpen(true);
               } else {
                 cameraInputRef.current?.click();
