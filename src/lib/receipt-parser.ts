@@ -282,7 +282,17 @@ export const parseReceiptText = (text: string, layout?: OcrRecognizeData): OcrRe
         bbox: layoutLine?.bbox,
       };
     })
-    .filter((value): value is { index: number; text: string; confidence: number; bbox?: { x0: number; y0: number; x1: number; y1: number } } => value !== null);
+    .filter((value) => value !== null) as Array<{
+      index: number;
+      text: string;
+      confidence: number;
+      bbox?: {
+        x0: number;
+        y0: number;
+        x1: number;
+        y1: number;
+      };
+    }>;
 
   const items: OcrLineItem[] = [];
   let subtotal: number | undefined;
