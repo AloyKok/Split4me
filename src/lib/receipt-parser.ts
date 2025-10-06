@@ -1,13 +1,4 @@
-import type { Currency, OcrConfidence, OcrLineItem, OcrRecognizeData, OcrResult } from "@/types";
-
-const currencyHints: Array<{ regex: RegExp; currency: Currency }> = [
-  { regex: /(s\$|sgd|singapore)/i, currency: "SGD" },
-  { regex: /(rm|myr|ringgit)/i, currency: "MYR" },
-  { regex: /(idr|rp\b|rupiah|indo)/i, currency: "IDR" },
-  { regex: /(thb|baht|thai)/i, currency: "THB" },
-  { regex: /(php|peso|phil)/i, currency: "PHP" },
-  { regex: /(vnd|dong|viet)/i, currency: "VND" },
-];
+import type { OcrConfidence, OcrLineItem, OcrRecognizeData, OcrResult } from "@/types";
 
 const sanitizeLine = (line: string) =>
   line
@@ -139,14 +130,6 @@ const normalizeAmount = (raw: string | undefined | null) => {
   }
   const value = Number.parseFloat(normalized);
   return Number.isFinite(value) ? value : undefined;
-};
-
-const detectCurrency = (lines: string[]): Currency | undefined => {
-  const joined = lines.join(" \n ");
-  for (const hint of currencyHints) {
-    if (hint.regex.test(joined)) return hint.currency;
-  }
-  return undefined;
 };
 
 const datePatterns = [
@@ -405,15 +388,10 @@ export const parseReceiptText = (text: string, layout?: OcrRecognizeData): OcrRe
 
   const sanitizedLines = lineEntries.map((entry) => entry.text);
 
-  const currencyGuess = detectCurrency(sanitizedLines);
   const dateISO = detectDate(sanitizedLines);
   const merchant = refineMerchant(sanitizedLines);
 
   let filteredItems = items
-    .map((item) => ({
-      ...item,
-      details: item.details?.length ? Array.from(new Set(item.details)) : undefined,
-    }))
     .filter((item) => {
       if (!item.name || !item.name.trim()) return false;
       if (typeof item.lineTotal === "number" && item.lineTotal <= 0.3) return false;
@@ -484,13 +462,6 @@ export const parseReceiptText = (text: string, layout?: OcrRecognizeData): OcrRe
   tax = round2(tax);
   total = round2(total);
 
-  let scGuess: number | undefined;
-  let taxGuess: number | undefined;
-  if (typeof subtotal === "number" && subtotal > 0) {
-    scGuess = typeof serviceCharge === "number" ? serviceCharge / subtotal : undefined;
-    taxGuess = typeof tax === "number" ? tax / subtotal : undefined;
-  }
-
   const averageItemConfidence = filteredItems.length
     ? filteredItems.reduce((sum, item) => sum + (item.confidence ?? 70), 0) / filteredItems.length
     : 0;
@@ -524,13 +495,6 @@ export const parseReceiptText = (text: string, layout?: OcrRecognizeData): OcrRe
       lineTotal: item.lineTotal,
       details: item.details,
     })),
-    subtotal,
-    serviceCharge,
-    tax,
-    total,
-    currencyGuess,
-    scGuess,
-    taxGuess,
     confidenceScore,
     confidenceLabel,
     rawText: text,

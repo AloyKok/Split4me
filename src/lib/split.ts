@@ -63,7 +63,7 @@ export const splitItems = (
   taxRate: number,
   options: SplitOptions,
 ): SplitBreakdown => {
-  const currencyDecimals = Math.max(0, options.currency?.minorUnit ?? 2);
+  const currencyDecimals = 2;
   const rounding = pickRound(options.mode, currencyDecimals);
 
   // 1) Item totals
@@ -184,7 +184,7 @@ export const splitTotal = (
   taxRate: number,
   options: SplitOptions,
 ): SplitBreakdown => {
-  const currencyDecimals = Math.max(0, options.currency?.minorUnit ?? 2);
+  const currencyDecimals = 2;
   const rounding = pickRound(options.mode, currencyDecimals);
 
   if (!persons.length) {
