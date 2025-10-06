@@ -39,7 +39,7 @@ import { ResultsBar } from "@/components/ResultsBar";
 import { ReceiptOcrPanel } from "@/components/ReceiptOcrPanel";
 import { forward } from "@/lib/calc";
 import { splitItems, splitTotal } from "@/lib/split";
-import type { Country, Currency, Item, OcrLineItem, OcrResult, Person } from "@/types";
+import type { Country, Currency, Item, ItemAssignment, OcrLineItem, OcrResult, Person } from "@/types";
 
 const COLORS = [
   "#2563eb",
