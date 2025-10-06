@@ -39,7 +39,7 @@ import { ResultsBar } from "@/components/ResultsBar";
 import { ReceiptOcrPanel } from "@/components/ReceiptOcrPanel";
 import { forward } from "@/lib/calc";
 import { splitItems, splitTotal } from "@/lib/split";
-import type { Country, Currency, Item, OcrLineItem, OcrResult, Person, ReceiptMetaState } from "@/types";
+import type { Country, Currency, Item, OcrLineItem, OcrResult, Person } from "@/types";
 
 const COLORS = [
   "#2563eb",
@@ -231,7 +231,6 @@ export const TabsReceiptTotal = () => {
   const [serviceChargeRate, setServiceChargeRate] = useState(0.1);
   const [taxEnabled, setTaxEnabled] = useState(true);
   const [taxRate, setTaxRate] = useState(0.09);
-  const [receiptMeta, setReceiptMeta] = useState<ReceiptMetaState>({});
   const [unitPriceDrafts, setUnitPriceDrafts] = useState<Record<string, string>>({});
 
   const currency = COUNTRY_SETTINGS[country].currency;
@@ -448,13 +447,6 @@ export const TabsReceiptTotal = () => {
             <p className="text-sm text-muted-foreground">
               Add your friends, then record each item or enter the grand total to see what everyone owes.
             </p>
-            {receiptMeta.merchant || receiptMeta.dateISO ? (
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                {receiptMeta.merchant ? <span>Merchant: {receiptMeta.merchant}</span> : null}
-                {receiptMeta.dateISO ? <span>Date: {new Date(receiptMeta.dateISO).toLocaleString()}</span> : null}
-                {receiptMeta.confidence ? <span>OCR confidence: {receiptMeta.confidence}</span> : null}
-              </div>
-            ) : null}
           </div>
           <div className="flex w-full items-center gap-3 sm:w-auto">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">Country</Label>
