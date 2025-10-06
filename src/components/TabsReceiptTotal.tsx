@@ -405,13 +405,6 @@ export const TabsReceiptTotal = () => {
 
   const applyParsedResult = useCallback(
     (parsed: OcrResult) => {
-      setReceiptMeta({
-        merchant: parsed.merchant,
-        dateISO: parsed.dateISO,
-        confidence: parsed.confidenceLabel,
-        confidenceScore: parsed.confidenceScore,
-      });
-
       const mappedItems = mapOcrItemsToEditable(parsed.items);
       const itemsToUse = mappedItems.length ? mappedItems : INITIAL_ITEMS.map((item) => ({ ...item, id: nextId() }));
       setItems(itemsToUse);
