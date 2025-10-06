@@ -33,30 +33,29 @@ const toNumber = (value: unknown): number | undefined => {
 
 const mapItems = (items: unknown[]): OcrLineItem[] => {
   if (!Array.isArray(items)) return [];
-  return items
-    .map((entry) => {
-      if (typeof entry !== "object" || entry === null) return undefined;
-      const record = entry as Record<string, unknown>;
-      const nameRaw = typeof record.name === "string" ? record.name.trim() : "";
-      if (!nameRaw) return undefined;
-      const qty = toNumber(record.qty) ?? 1;
-      const lineTotal = toNumber(record.lineTotal);
-      const detailsArray = Array.isArray(record.details)
-        ? record.details
-            .map((detail) => (typeof detail === "string" ? detail.trim() : ""))
-            .filter((detail) => detail.length > 0)
-        : undefined;
-      const confidence = toNumber(record.confidence);
-      return {
-        name: nameRaw,
-        qty,
-        lineTotal: lineTotal !== undefined ? Number(lineTotal.toFixed(2)) : undefined,
-        unitPrice: lineTotal !== undefined ? Number((lineTotal / (qty || 1)).toFixed(2)) : undefined,
-        details: detailsArray && detailsArray.length ? Array.from(new Set(detailsArray)) : undefined,
-        confidence,
-      } satisfies OcrLineItem;
-    })
-    .filter((item): item is OcrLineItem => Boolean(item));
+  return items.reduce<OcrLineItem[]>((acc, entry) => {
+    if (typeof entry !== "object" || entry === null) return acc;
+    const record = entry as Record<string, unknown>;
+    const nameRaw = typeof record.name === "string" ? record.name.trim() : "";
+    if (!nameRaw) return acc;
+    const qty = toNumber(record.qty) ?? 1;
+    const lineTotal = toNumber(record.lineTotal);
+    const detailsArray = Array.isArray(record.details)
+      ? record.details
+          .map((detail) => (typeof detail === "string" ? detail.trim() : ""))
+          .filter((detail) => detail.length > 0)
+      : undefined;
+    const confidence = toNumber(record.confidence);
+    acc.push({
+      name: nameRaw,
+      qty,
+      lineTotal: lineTotal !== undefined ? Number(lineTotal.toFixed(2)) : undefined,
+      unitPrice: lineTotal !== undefined ? Number((lineTotal / (qty || 1)).toFixed(2)) : undefined,
+      details: detailsArray && detailsArray.length ? Array.from(new Set(detailsArray)) : undefined,
+      confidence,
+    });
+    return acc;
+  }, []);
 };
 
 const buildOcrResult = (
@@ -148,17 +147,10 @@ Guidelines:
     throw new OpenAiOcrError("Failed to extract receipt", response.status, errorText);
   }
 
-  type OpenAIContent = { type: string; text?: string };
-  type OpenAIOutput = { content?: OpenAIContent[] };
-  type OpenAIResponse = { output?: OpenAIOutput[] };
-
-  const payload = (await response.json()) as OpenAIResponse;
-  const output = payload?.output;
-  if (!Array.isArray(output) || !output.length) {
-    throw new OpenAiOcrError("Unexpected response from OpenAI", response.status, payload);
-  }
-
-  const content = output[0]?.content;
+  const payload = (await response.json()) as Record<string, unknown> & {
+    output?: Array<{ content?: Array<{ type: string; text?: string }> }>;
+  };
+  const content = payload.output?.[0]?.content;
   if (!Array.isArray(content)) {
     throw new OpenAiOcrError("Missing content in OpenAI response", response.status, payload);
   }
